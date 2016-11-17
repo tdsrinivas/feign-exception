@@ -4,10 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.srini.controller.UserController
 import com.srini.model.User
-import org.apache.http.HttpResponse
-import org.apache.http.client.HttpClient
-import org.apache.http.client.methods.HttpGet
-import org.apache.http.impl.client.HttpClientBuilder
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.web.client.TestRestTemplate
@@ -41,7 +37,7 @@ class FeignExceptionTest extends Specification {
         userService.stop();
     }
 
-    def "test feign client responds with 200"() {
+    def "test when feign client responds with 200, service returns 200"() {
         setup:
         userService.stubFor(get(urlEqualTo("/users/guid1"))
                 .willReturn(aResponse()
@@ -57,7 +53,22 @@ class FeignExceptionTest extends Specification {
         response.getStatusCode().value() == 200
     }
 
-    def "test feign client is not available"() {
+    def "test when feign client responds with 503, service returns 503"() {
+        setup:
+        userService.stubFor(get(urlEqualTo("/users/guid1"))
+                .willReturn(aResponse()
+                .withStatus(503)
+                .withHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+                .withBody(mapper.writeValueAsString(new User(firstName: "Srinivas")))))
+
+        when:
+        ResponseEntity<User> response = restTemplate.getForEntity("/users/guid1", User.class);
+
+        then:
+        response.getStatusCode().value() == 503
+    }
+
+    def "test when feign client is not available, service returns 503"() {
         setup:
         userService.stop()
 
